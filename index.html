@@ -203,20 +203,23 @@
     </div>
 
     <!-- Modal para Mostrar e Imprimir Código QR del Activo -->
-    <div id="qr-modal" class="modal hidden">
-        <div class="modal-content glass-card text-center">
-            <div class="modal-header">
-                <h3 id="qr-modal-title">Código QR del Activo</h3>
-                <button onclick="closeQRModal()" class="close-btn">&times;</button>
-            </div>
-            <div class="modal-body">
-                <div id="qrcode-container"></div>
-                <p id="qr-modal-details"></p>
-                <button onclick="window.print()" class="btn-primary print-btn"><i class="fa-solid fa-print"></i> Imprimir Etiqueta</button>
-            </div>
+    <div id="scanner-modal" class="modal hidden">
+    <div class="modal-content glass-card">
+        <div class="modal-header">
+            <h3><i class="fa-solid fa-barcode"></i> Escáner de Activos</h3>
+            <button class="close-btn" onclick="closeScannerModal()">&times;</button>
         </div>
-    </div>
+        
+        <!-- Selector de Acción del Escáner -->
+        <div class="scan-mode-selector">
+            <label><input type="radio" name="scan-action" value="fill" checked> 📝 Autodiligenciar Formulario</label>
+            <label><input type="radio" name="scan-action" value="search"> 🔍 Buscar en Tabla</label>
+        </div>
 
+        <div id="reader"></div>
+        <p class="scan-instructions">Apunta la cámara al código de barras (S/N, Placa) o código QR del activo.</p>
+    </div>
+</div>
     <script src="app.js?v=1"></script>
 </body>
 </html>
