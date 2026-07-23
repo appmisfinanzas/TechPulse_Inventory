@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TechPulse - Inventario Tecnológico Pro</title>
+    <link rel="stylesheet" href="styles.css?v=1">
+    <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png?v=1">
+    <!-- Chart.js para gráficas de infraestructura -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- FontAwesome para íconos tecnológicos -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- QR Code Generator & Html5-QRCode Scanner -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="https://unpkg.com/html5-qrcode"></script>
+</head>
+<body>
+
+    <!-- Header / Navbar Nav-Glass -->
+    <header class="glass-nav">
+        <div class="brand">
+            <i class="fa-solid fa-server logo-glow"></i>
+            <h1>Tech<span>Pulse</span> <span class="badge-pro">INVENTORY PRO</span></h1>
+        </div>
+        <div class="actions">
+            <button onclick="openScannerModal()" class="btn-scanner"><i class="fa-solid fa-qrcode"></i> Escanear QR/Barra</button>
+            <button onclick="exportToCSV()" class="btn-secondary"><i class="fa-solid fa-file-csv"></i> Exportar CSV</button>
+        </div>
+    </header>
+
+    <main class="container">
+        <!-- Métricas KPI Top -->
+        <section class="metrics-grid">
+            <div class="card metric-card total-assets">
+                <div class="metric-icon"><i class="fa-solid fa-boxes-stacked"></i></div>
+                <div>
+                    <h3>Total Activos</h3>
+                    <div class="amount" id="kpi-total">0</div>
+                    <span class="sub-text">Equipos e Infraestructura</span>
+                </div>
+            </div>
+            <div class="card metric-card assigned-assets">
+                <div class="metric-icon"><i class="fa-solid fa-laptop-user"></i></div>
+                <div>
+                    <h3>En Uso / Asignados</h3>
+                    <div class="amount" id="kpi-assigned">0</div>
+                    <span class="sub-text">Desplegados</span>
+                </div>
+            </div>
+            <div class="card metric-card stock-assets">
+                <div class="metric-icon"><i class="fa-solid fa-warehouse"></i></div>
+                <div>
+                    <h3>En Stock</h3>
+                    <div class="amount" id="kpi-stock">0</div>
+                    <span class="sub-text">Disponibles</span>
+                </div>
+            </div>
+            <div class="card metric-card chart-card">
+                <h3><i class="fa-solid fa-chart-pie"></i> Distribución por Categoría</h3>
+                <div class="canvas-wrapper">
+                    <canvas id="categoryChart"></canvas>
+                </div>
+            </div>
+        </section>
+
+        <!-- Sección de Control: Formulario + Filtros -->
+        <section class="main-grid">
+            <!-- Formulario de Registro / Edición -->
+            <div class="card glass-card">
+                <h2><i class="fa-solid fa-microchip"></i> <span id="form-title">Registrar Nuevo Activo</span></h2>
+                <form id="asset-form" onsubmit="saveAsset(event)">
+                    <input type="hidden" id="asset-id">
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Asset Tag / Código Activo *</label>
+                            <div class="input-with-btn">
+                                <input type="text" id="asset-tag" placeholder="Ej. AST-2026-001" required>
+                                <button type="button" onclick="generateTag()"><i class="fa-solid fa-wand-magic-sparkles"></i></button>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Nombre del Equipo / Hostname *</label>
+                            <input type="text" id="asset-name" placeholder="Ej. SRV-PRTG-01 o Laptop-Luis" required>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Categoría TI *</label>
+                            <select id="asset-category" required>
+                                <option value="Servidores">🖥️ Servidores / Racks</option>
+                                <option value="Laptops/Desktops">💻 Laptops & Workstations</option>
+                                <option value="Redes/Switches">🌐 Redes, Switches & Routers</option>
+                                <option value="Almacenamiento/NAS">💾 NAS & SAN Storage</option>
+                                <option value="Periféricos/Monitores">🖥️ Monitores & Periféricos</option>
+                                <option value="Licencias/Cloud">☁️ Licencias & Cloud Subscriptions</option>
+                                <option value="Otros">📦 Otros Activos</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Estado Operativo *</label>
+                            <select id="asset-status" required>
+                                <option value="En Stock">🟢 En Stock / Disponible</option>
+                                <option value="Asignado">🔵 Asignado / En Uso</option>
+                                <option value="Mantenimiento">🟡 En Mantenimiento</option>
+                                <option value="De Baja">🔴 De Baja / Obsoleto</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Marca / Modelo</label>
+                            <input type="text" id="asset-model" placeholder="Ej. Dell PowerEdge R740 / Lenovo ThinkPad">
+                        </div>
+                        <div class="form-group">
+                            <label>Número de Serie (S/N)</label>
+                            <input type="text" id="asset-sn" placeholder="Ej. SN-987654321">
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Dirección IP / MAC</label>
+                            <input type="text" id="asset-network" placeholder="Ej. 192.168.1.50 / 00:1A:2B:3C:4D:5E">
+                        </div>
+                        <div class="form-group">
+                            <label>Asignado a / Ubicación</label>
+                            <input type="text" id="asset-assigned" placeholder="Ej. Luis - Ing. Infraestructura / Rack 02 Datacenter">
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Valor Estimado ($ USD)</label>
+                            <input type="number" id="asset-value" placeholder="Ej. 2500" step="any">
+                        </div>
+                        <div class="form-group">
+                            <label>Fecha de Adquisición / Garantía</label>
+                            <input type="date" id="asset-date">
+                        </div>
+                    </div>
+
+                    <div class="form-buttons">
+                        <button type="submit" class="btn-primary" id="btn-save"><i class="fa-solid fa-floppy-disk"></i> Guardar Activo</button>
+                        <button type="button" class="btn-cancel hidden" id="btn-cancel" onclick="resetForm()"><i class="fa-solid fa-xmark"></i> Cancelar</button>
+                    </div>
+                </form>
+            </div>
+        </section>
+
+        <!-- Tabla de Inventario y Filtros -->
+        <section class="card glass-card history-section">
+            <div class="history-header">
+                <h2><i class="fa-solid fa-list-check"></i> Registro Global de Inventario</h2>
+                <div class="filter-box">
+                    <input type="text" id="search-input" onkeyup="filterAssets()" placeholder="🔍 Buscar por Asset Tag, S/N, Nombre, IP...">
+                    <select id="filter-category" onchange="filterAssets()">
+                        <option value="ALL">Todas las Categorías</option>
+                        <option value="Servidores">Servidores</option>
+                        <option value="Laptops/Desktops">Laptops & Workstations</option>
+                        <option value="Redes/Switches">Redes & Switches</option>
+                        <option value="Almacenamiento/NAS">Storage / NAS</option>
+                        <option value="Periféricos/Monitores">Monitores & Periféricos</option>
+                        <option value="Licencias/Cloud">Licencias & Cloud</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Asset Tag</th>
+                            <th>Equipo / Hostname</th>
+                            <th>Categoría</th>
+                            <th>S/N / Red (IP)</th>
+                            <th>Asignación / Ubicación</th>
+                            <th>Estado</th>
+                            <th>QR</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="assets-list"></tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+
+    <!-- Modal para Lector de Código QR / Barras con Cámara -->
+    <div id="scanner-modal" class="modal hidden">
+        <div class="modal-content glass-card">
+            <div class="modal-header">
+                <h3><i class="fa-solid fa-camera"></i> Escáner de Código QR / Barras TI</h3>
+                <button onclick="closeScannerModal()" class="close-btn">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div id="reader"></div>
+                <p class="scan-instructions">Apunta la cámara del dispositivo al código QR o de barras del equipo.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal para Mostrar e Imprimir Código QR del Activo -->
+    <div id="qr-modal" class="modal hidden">
+        <div class="modal-content glass-card text-center">
+            <div class="modal-header">
+                <h3 id="qr-modal-title">Código QR del Activo</h3>
+                <button onclick="closeQRModal()" class="close-btn">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div id="qrcode-container"></div>
+                <p id="qr-modal-details"></p>
+                <button onclick="window.print()" class="btn-primary print-btn"><i class="fa-solid fa-print"></i> Imprimir Etiqueta</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js?v=1"></script>
+</body>
+</html>
