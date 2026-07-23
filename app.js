@@ -2,16 +2,22 @@ let assets = [];
 let chartInstance = null;
 let html5QrCode = null;
 
+// Inicialización de la aplicación
 window.addEventListener('DOMContentLoaded', () => {
     loadAssets();
     generateTag();
 });
+
+/* --------------------------------------------------------------------------
+   1. Carga y Almacenamiento de Datos (LocalStorage)
+   -------------------------------------------------------------------------- */
 
 function loadAssets() {
     const data = localStorage.getItem('techpulse_inventory');
     if (data) {
         assets = JSON.parse(data);
     } else {
+        // Datos de prueba iniciales orientados a Infraestructura TI
         assets = [
             {
                 id: 1,
@@ -70,8 +76,12 @@ function generateTag() {
     }
 }
 
+/* --------------------------------------------------------------------------
+   2. CRUD: Guardar, Editar, Eliminar y Limpiar Formulario
+   -------------------------------------------------------------------------- */
+
 function saveAsset(e) {
-    e.preventDefault();
+    if (e) e.preventDefault();
     const id = document.getElementById('asset-id').value;
     
     const assetData = {
@@ -138,6 +148,10 @@ function resetForm() {
     document.getElementById('btn-cancel').classList.add('hidden');
     generateTag();
 }
+
+/* --------------------------------------------------------------------------
+   3. Renderizado de Tabla, Métricas KPIs y Gráfico
+   -------------------------------------------------------------------------- */
 
 function render(filteredList = null) {
     const listToRender = filteredList || assets;
@@ -235,7 +249,10 @@ function renderChart(categoryCounts) {
     });
 }
 
-/* Modal y Control Nativo de Cámara para Códigos de Barras */
+/* --------------------------------------------------------------------------
+   4. Modal Visualizador de Código QR
+   -------------------------------------------------------------------------- */
+
 function showQRCode(tag, name) {
     const container = document.getElementById('qrcode-container');
     container.innerHTML = '';
@@ -250,33 +267,100 @@ function closeQRModal() {
     document.getElementById('qr-modal').classList.add('hidden');
 }
 
+/* --------------------------------------------------------------------------
+   5. Escáner QR / Código de Barras e Integración Inteligente con Formulario
+   -------------------------------------------------------------------------- */
+
 async function openScannerModal() {
     document.getElementById('scanner-modal').classList.remove('hidden');
     
-    // Inicializar el escáner nativo de la cámara
     if (!html5QrCode) {
         html5QrCode = new Html5Qrcode("reader");
     }
 
-    const config = { fps: 15, qrbox: { width: 280, height: 180 } };
+    const config = { 
+        fps: 15, 
+        qrbox: { width: 280, height: 180 },
+        aspectRatio: 1.0
+    };
 
     try {
         await html5QrCode.start(
-            { facingMode: "environment" }, // Usa la cámara trasera del smartphone
+            { facingMode: "environment" }, // Cámara trasera
             config,
             (decodedText) => {
-                // Al detectar código de barras o QR
-                document.getElementById('search-input').value = decodedText;
-                filterAssets();
+                // Determina la acción según el radio botón activo ('fill' o 'search')
+                const selectedMode = document.querySelector('input[name="scan-action"]:checked');
+                const action = selectedMode ? selectedMode.value : 'fill';
+                
+                if (action === 'search') {
+                    // Modo Búsqueda / Consulta en la tabla
+                    document.getElementById('search-input').value = decodedText;
+                    filterAssets();
+                } else {
+                    // Modo Autodiligenciar Formulario
+                    autoFillFormFromScan(decodedText);
+                }
+                
                 closeScannerModal();
             },
             (errorMessage) => {
-                // Escaneando frame a frame...
+                // Mantener el escaneo activo cuadro a cuadro...
             }
         );
     } catch (err) {
-        alert('No se pudo acceder a la cámara. Asegúrate de otorgar permisos de cámara en tu navegador.');
+        alert('No se pudo acceder a la cámara. Por favor verifica los permisos en tu navegador.');
         closeScannerModal();
+    }
+}
+
+// Analiza los datos escaneados y completa automáticamente el formulario
+function autoFillFormFromScan(scannedData) {
+    let parsed = null;
+    
+    // 1. Verificar si el contenido del QR es un objeto JSON formateado
+    try {
+        parsed = JSON.parse(scannedData);
+    } catch (e) {
+        parsed = null;
+    }
+
+    if (parsed && typeof parsed === 'object') {
+        // Autodiligenciado múltiple por estructura JSON
+        if (parsed.tag) document.getElementById('asset-tag').value = parsed.tag;
+        if (parsed.name) document.getElementById('asset-name').value = parsed.name;
+        if (parsed.category) document.getElementById('asset-category').value = parsed.category;
+        if (parsed.status) document.getElementById('asset-status').value = parsed.status;
+        if (parsed.model) document.getElementById('asset-model').value = parsed.model;
+        if (parsed.sn) document.getElementById('asset-sn').value = parsed.sn;
+        if (parsed.network) document.getElementById('asset-network').value = parsed.network;
+        if (parsed.assigned) document.getElementById('asset-assigned').value = parsed.assigned;
+        if (parsed.value) document.getElementById('asset-value').value = parsed.value;
+        if (parsed.date) document.getElementById('asset-date').value = parsed.date;
+    } else {
+        // 2. Si es un código de barras 1D estándar o texto plano
+        const dataStr = String(scannedData).trim();
+
+        if (dataStr.startsWith('AST-')) {
+            document.getElementById('asset-tag').value = dataStr;
+        } else if (dataStr.startsWith('192.') || dataStr.startsWith('10.') || dataStr.startsWith('172.')) {
+            document.getElementById('asset-network').value = dataStr;
+        } else {
+            // Asignación por defecto a Número de Serie / S/N (ej. etiquetas Dell, Lenovo, Cisco)
+            document.getElementById('asset-sn').value = dataStr;
+        }
+    }
+
+    // Desplazar suavemente la pantalla hacia el formulario
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+
+    // Efecto visual de resaltado temporal en la tarjeta del formulario
+    const formCard = document.querySelector('.main-grid .card');
+    if (formCard) {
+        formCard.style.border = '2px solid var(--neon-orange)';
+        setTimeout(() => {
+            formCard.style.border = '1px solid var(--border-color)';
+        }, 2000);
     }
 }
 
@@ -287,13 +371,19 @@ async function closeScannerModal() {
     document.getElementById('scanner-modal').classList.add('hidden');
 }
 
+/* --------------------------------------------------------------------------
+   6. Exportación de Datos
+   -------------------------------------------------------------------------- */
+
 function exportToCSV() {
     if (!assets.length) return alert('No hay activos registrados para exportar.');
+    
     let csv = 'Asset Tag,Nombre,Categoria,Estado,Modelo,SN,Red IP/MAC,Asignado,Valor USD,Fecha\n';
     assets.forEach(a => {
         csv += `"${a.tag}","${a.name}","${a.category}","${a.status}","${a.model || ''}","${a.sn || ''}","${a.network || ''}","${a.assigned || ''}",${a.value || 0},"${a.date || ''}"\n`;
     });
-    const blob = new Blob([csv], { type: 'text/csv' });
+    
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.setAttribute('href', url);
