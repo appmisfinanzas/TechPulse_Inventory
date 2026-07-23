@@ -1,6 +1,6 @@
 let assets = [];
 let chartInstance = null;
-let html5QrcodeScanner = null;
+let html5QrCode = null;
 
 window.addEventListener('DOMContentLoaded', () => {
     loadAssets();
@@ -12,7 +12,6 @@ function loadAssets() {
     if (data) {
         assets = JSON.parse(data);
     } else {
-        // Datos de demostración iniciales profesionales
         assets = [
             {
                 id: 1,
@@ -171,7 +170,7 @@ function render(filteredList = null) {
             <td><span class="tag-mono">${a.tag}</span></td>
             <td><strong>${a.name}</strong><br><small style="color:var(--text-muted)">${a.model || '-'}</small></td>
             <td>${a.category}</td>
-            <td>S/N: ${a.sn || '-'}<br><small style="color:var(--neon-cyan)">${a.network || ''}</small></td>
+            <td>S/N: ${a.sn || '-'}<br><small style="color:var(--neon-orange)">${a.network || ''}</small></td>
             <td>${a.assigned || 'Sin asignar'}</td>
             <td><span class="status-badge ${statusClass}">${a.status}</span></td>
             <td><button class="btn-action" onclick="showQRCode('${a.tag}', '${a.name}')"><i class="fa-solid fa-qrcode"></i></button></td>
@@ -213,7 +212,7 @@ function renderChart(categoryCounts) {
 
     const labels = Object.keys(categoryCounts);
     const data = Object.values(categoryCounts);
-    const colors = ['#00F2FE', '#00FF87', '#3B82F6', '#A855F7', '#FF5E00', '#FF007F'];
+    const colors = ['#FF5E00', '#D946EF', '#10B981', '#F59E0B', '#3B82F6', '#EC4899'];
 
     chartInstance = new Chart(ctx, {
         type: 'doughnut',
@@ -221,22 +220,22 @@ function renderChart(categoryCounts) {
             labels: labels.length ? labels : ['Sin Datos'],
             datasets: [{
                 data: data.length ? data : [1],
-                backgroundColor: data.length ? colors.slice(0, data.length) : ['#1E293B'],
+                backgroundColor: data.length ? colors.slice(0, data.length) : ['#1E102A'],
                 borderWidth: 2,
-                borderColor: '#070B14'
+                borderColor: '#0B0813'
             }]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
             plugins: {
-                legend: { position: 'right', labels: { color: '#94A3B8', font: { size: 9 }, boxWidth: 8 } }
+                legend: { position: 'right', labels: { color: '#A1A1AA', font: { size: 9 }, boxWidth: 8 } }
             }
         }
     });
 }
 
-/* Modales e Integración de QR */
+/* Modal y Control Nativo de Cámara para Códigos de Barras */
 function showQRCode(tag, name) {
     const container = document.getElementById('qrcode-container');
     container.innerHTML = '';
@@ -251,19 +250,39 @@ function closeQRModal() {
     document.getElementById('qr-modal').classList.add('hidden');
 }
 
-function openScannerModal() {
+async function openScannerModal() {
     document.getElementById('scanner-modal').classList.remove('hidden');
-    html5QrcodeScanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: { width: 250, height: 250 } });
-    html5QrcodeScanner.render((decodedText) => {
-        document.getElementById('search-input').value = decodedText;
-        filterAssets();
+    
+    // Inicializar el escáner nativo de la cámara
+    if (!html5QrCode) {
+        html5QrCode = new Html5Qrcode("reader");
+    }
+
+    const config = { fps: 15, qrbox: { width: 280, height: 180 } };
+
+    try {
+        await html5QrCode.start(
+            { facingMode: "environment" }, // Usa la cámara trasera del smartphone
+            config,
+            (decodedText) => {
+                // Al detectar código de barras o QR
+                document.getElementById('search-input').value = decodedText;
+                filterAssets();
+                closeScannerModal();
+            },
+            (errorMessage) => {
+                // Escaneando frame a frame...
+            }
+        );
+    } catch (err) {
+        alert('No se pudo acceder a la cámara. Asegúrate de otorgar permisos de cámara en tu navegador.');
         closeScannerModal();
-    }, (error) => {});
+    }
 }
 
-function closeScannerModal() {
-    if (html5QrcodeScanner) {
-        html5QrcodeScanner.clear().catch(error => console.error(error));
+async function closeScannerModal() {
+    if (html5QrCode && html5QrCode.isScanning) {
+        await html5QrCode.stop();
     }
     document.getElementById('scanner-modal').classList.add('hidden');
 }
